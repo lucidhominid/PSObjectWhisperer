@@ -24,10 +24,13 @@ if($InputObject -and $CurrentDepth -le $Depth){
             if(($InputObject.$_)){
                 If($TypeFilter -notcontains ($InputObject.$_).GetType()){
                     $inputObject.$_|
-                        Get-PropertyPath -CurrentDepth ($CurrentDepth+1) -Depth $Depth| 
+                        Get-PropertyPath -CurrentDepth ($CurrentDepth+1) -Depth $Depth|
+                        Select-Object -Unique | 
                         ForEach-Object{
                             # Add this property name to the results and join them all with '.'
-                            (($ThisProp,$_) -join '.').Trim('.')
+                            if($_ -notlike "$ThisProp*"){
+                                (($ThisProp,$_) -join '.').Trim('.')
+                            }
                         }
                 }
                 else{
