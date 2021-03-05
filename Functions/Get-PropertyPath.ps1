@@ -13,17 +13,24 @@ param (
     [Parameter(DontShow)]
     [Int]$CurrentDepth = 0
 )
-# Only proceed if we have not reached the specified depth
-if($InputObject -and $CurrentDepth -le $Depth){
+#Convert hastables to a custom object so they can be worked with as well.
+if($InputObject -is [Hashtable]){
+    $ProcessObject = $InputObject |
+        Select-Key $InputObject.Keys -AsObject
+}else{
+    $ProcessObject = $InputObject
+}
+# Only proceed if we have not reached the specified depth.
+if($ProcessObject -and $CurrentDepth -le $Depth){
     Write-Verbose "Depth: $CurrentDepth"
-    ($InputObject| 
+    ($ProcessObject| 
         Get-Member -MemberType Properties).Name | 
         Foreach-Object{
             # Foreach property that's value does not match the TypeFilter. Recursively run this function
             $ThisProp = $_
-            if(($InputObject.$_)){
-                If($TypeFilter -notcontains ($InputObject.$_).GetType()){
-                    $inputObject.$_|
+            if(($ProcessObject.$_)){
+                If($TypeFilter -notcontains ($ProcessObject.$_).GetType()){
+                    $ProcessObject.$_|
                         Get-PropertyPath -CurrentDepth ($CurrentDepth+1) -Depth $Depth|
                         Select-Object -Unique | 
                         ForEach-Object{
