@@ -2,9 +2,9 @@
 param (
     [Parameter()]
     [String[]]
-    $Keys,
+    $Key = "*",
 
-    [Parameter()]
+    [Parameter(DontShow)]
     #Planned feature: Cast as any object type.
     #[ValidateScript({
     #    (Invoke-Express "[$_]") -is [Type]
@@ -12,7 +12,7 @@ param (
     [Switch]
     $AsObject <#= 'PSCustomObject'#>,
 
-    [Parameter()]
+    [Parameter(DontShow)]
     [Switch]
     $Ordered,
 
@@ -22,6 +22,18 @@ param (
     )]
     $InputObject
 )
+begin{
+    
+    # Aliases
+    Switch($PSCmdlet.MyInvocation.InvocationName){
+        'ConvertTo-Object' {
+            $AsObject = $true
+        }
+        'ConvertTo-Hashtable' {
+            $AsObject = $false
+        }
+    }
+}
 process{
 
     $Out = ''
@@ -35,12 +47,12 @@ process{
         $InputObject |
             Get-Member -MemberType Properties
         ).Name |
-        Where-Object {$Keys -icontains $_ -or $_ -like $Keys}|
+        Where-Object {$Key -icontains $_ -or $_ -like $Key}|
         Select-Object -Unique |
         Sort-Object {
             $ThisItem = $_
-            0..($Keys.Count-1)|
-                Where-Object{$Keys[$_] -like $ThisItem}|
+            0..($Key.Count-1)|
+                Where-Object{$Key[$_] -like $ThisItem}|
                 Select-Object -first 1
         }|
         ForEach-Object {
