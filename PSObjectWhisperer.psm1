@@ -12,6 +12,10 @@ Get-ChildItem $ModuleRootPath\Functions -filter *.ps1 |
                 }).Clauses.Item1.Value|
                 Where-Object {$_ -ne $null}|
                 ForEach-Object{
-                    New-Alias -Name $_ -Value $ThisFunctionName -Force
+                    try{
+                        New-Alias -Name $_ -Value $ThisFunctionName -ErrorAction Stop
+                    }catch{
+                        Write-Verbose "Alias '$_' with value '$ThisFunctionName' could not being exported."
+                    }
                 }
     }
