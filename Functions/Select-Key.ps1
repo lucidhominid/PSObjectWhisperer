@@ -4,23 +4,40 @@ param (
     [String[]]
     $Key = "*",
 
-    [Parameter(DontShow)]
-    #Planned feature: Cast as any object type.
-    #[ValidateScript({
-    #    (Invoke-Express "[$_]") -is [Type]
-    #})][String]
-    [Switch]
-    $AsObject <#= 'PSCustomObject'#>,
+    [Parameter(
+        ParameterSetName = 'AsObject'
+    )][Switch]
+    $AsObject,
 
-    [Parameter(DontShow)]
-    [Switch]
+    [Parameter(
+        ParameterSetName = 'AsObject'
+    )][ArgumentCompleter({
+        param($commandName,$parameterName,$wordToComplete,$commandAst,$fakeBoundParameters)
+        [AppDomain]::CurrentDomain.GetAssemblies().GetTypes() |
+            Where-Object {
+                $_.Name -like "$wordToComplete*" -or
+                $_.FullName -like "$wordToComplete*" 
+            } |
+            Foreach-Object{
+                [System.Management.Automation.CompletionResult]::new(
+                    $_.Name,
+                    $_.FullName, 
+                    'ParameterValue',
+                    ($_|Format-List|Out-String)
+                )
+            }
+    })][String]
+    $Type = 'PSCustomObject',
+
+    [Parameter(
+        ParameterSetName = 'Ordered'
+    )][Switch]
     $Ordered,
 
     [Parameter(
         Mandatory,
         ValueFromPipeline
-    )]
-    $InputObject
+    )]$InputObject
 )
 begin{
     
@@ -37,9 +54,7 @@ begin{
 process{
 
     $Out = ''
-    if($AsObject){
-        $Out += '[PSCustomObject]'
-    }elseif($Ordered){
+    if($Ordered){
         $Out += '[Ordered]'
     }
     $Out += '@{'
@@ -69,9 +84,58 @@ process{
                 }
             )
             
-            "`${$KeyGuid} = `${$ValueGuid}"
+            [PSCustomObject]@{
+                AsString = "`${$KeyGuid} = `${$ValueGuid}"
+                KeyName  = $_
+                KeyValue = Get-Variable $ValueGuid -ValueOnly
+            }
         }
-    $Out += $Pairs -join ';'
+    $Out += $Pairs.AsString -join ';'
     $Out += '}'
-    Invoke-Expression $Out
+    if($AsObject){
+        try{
+            $Result = Invoke-Expression "[$Type]$Out"
+            if($Result -notlike "System.Collections.Hashtable"){
+                $Result
+            }else {
+                Throw "BAD!"
+            }
+        }catch{
+            
+            $Done = $null
+            $ThisType = [AppDomain]::CurrentDomain.GetAssemblies().GetTypes() | 
+                Where-Object Name -like $Type
+            $ThisType.DeclaredConstructors.GetParameters()|
+                Group-Object Member|
+                ForEach-Object{
+                    if(!$Done){
+                        $Arguments = $_.Group |
+                            ForEach-Object {
+                                $Pairs |
+                                    Where-Object KeyValue -Is $_.ParameterType |
+                                    Where-Object {$Arguments.Keyname -iNotContains $_.KeyName}  |
+                                    Select-Object -First 1
+                            }
+                        if($Arguments.count -eq $_.Group.count){
+                            try{
+                                Invoke-Expression "[$Type]::new($(
+                                    (
+                                        0..($Arguments.count -1)|
+                                            Foreach-Object {
+                                                "`$Arguments[$_]"
+                                            }
+                                    )-join','
+                                ))"
+                                $Done = $true
+                            }catch{
+                                $Done = $null
+                            }
+                        }
+                    }
+                    
+                }
+        }
+    }else {
+        Invoke-Expression $Out        
+    }
 }
