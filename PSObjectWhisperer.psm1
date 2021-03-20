@@ -1,7 +1,6 @@
-$ModuleRootPath =  Split-Path -Path $MyInvocation.MyCommand.Path
-Get-ChildItem $ModuleRootPath\Functions -filter *.ps1 | 
+Get-ChildItem $PSScriptRoot\Functions -filter *.ps1 | 
     ForEach-Object{
-            $ThisFunctionName = $_.Name -replace '\.ps1'
+            $ThisFunctionName = $_.Name -replace '\.ps1$'
             $ThisFunction = [Scriptblock]::Create(
                 "Function $ThisFunctionName {$((Get-Content $_.FullName) -join "`n")}"
             )
