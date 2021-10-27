@@ -18,3 +18,4 @@ Get-ChildItem $PSScriptRoot\Functions -filter *.ps1 |
                     }
                 }
     }
+Add-type -AssemblyName WindowsBase
